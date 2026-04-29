@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Travel Agent Map</title>
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  />
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      height: 100vh;
+    }
+
+    .sidebar {
+      padding: 16px;
+      overflow-y: auto;
+      background: white;
+      border-right: 1px solid #ddd;
+    }
+
+    .sidebar h1 {
+      margin-top: 0;
+      font-size: 22px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .controls input,
+    .controls textarea,
+    .controls button {
+      font-size: 14px;
+      padding: 10px;
+    }
+
+    .controls textarea {
+      min-height: 72px;
+      resize: vertical;
+    }
+
+    .controls button {
+      cursor: pointer;
+    }
+
+    .section {
+      margin-top: 18px;
+    }
+
+    .section h2 {
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .item {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+
+    .item small {
+      color: #666;
+      display: block;
+      margin-top: 4px;
+    }
+
+    .trip-plan {
+      white-space: pre-wrap;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+
+    .legend {
+      margin-top: 12px;
+      font-size: 13px;
+      color: #444;
+    }
+
+    .legend span {
+      display: inline-block;
+      margin-right: 12px;
+    }
+
+    .clickable-item {
+      cursor: pointer;
+      transition: background 0.2s ease, border-color 0.2s ease;
+    }
+
+    .clickable-item:hover {
+      background: #eef6ff;
+      border-color: #7aa7d9;
+    }
+
+    .plan-cards {
+      display: grid;
+      gap: 10px;
+    }
+
+    .plan-card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fafafa;
+    }
+
+    .plan-card h3 {
+      margin: 0 0 8px 0;
+      font-size: 15px;
+    }
+
+    .plan-card ul {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .custom-marker {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+    }
+
+    .marker-destination {
+      background: #2563eb;
+    }
+
+    .marker-hotel {
+      background: #16a34a;
+    }
+
+    .marker-restaurant {
+      background: #dc2626;
+    }
+
+    .marker-attraction {
+      background: #f59e0b;
+    }
+
+    .icon-pin {
+      position: relative;
+      width: 20px;
+      height: 20px;
+      transform: rotate(45deg);
+      border-radius: 50% 50% 50% 0;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+    }
+
+    .icon-pin::after {
+      content: "";
+      position: absolute;
+      width: 7px;
+      height: 7px;
+      background: white;
+      border-radius: 50%;
+      top: 5px;
+      left: 5px;
+    }
+
+    .icon-square {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+    }
+
+    .icon-triangle {
+      width: 0;
+      height: 0;
+      border-left: 11px solid transparent;
+      border-right: 11px solid transparent;
+      border-bottom: 20px solid #dc2626;
+      filter: drop-shadow(0 0 0.5px rgba(0, 0, 0, 0.5));
+    }
+
+    .icon-diamond {
+      width: 18px;
+      height: 18px;
+      transform: rotate(45deg);
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+      background: #f59e0b;
+    }
+
+    .icon-diamond::after {
+      content: "";
+      position: absolute;
+      inset: 4px;
+      background: rgba(255, 255, 255, 0.85);
+    }
+
+    .selected-item {
+      background: #dbeafe;
+      border-color: #2563eb;
+    }
+
+    .route-legend {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="sidebar">
+      <h1>Travel Agent Map</h1>
+
+      <div class="controls">
+        <input id="origin" value="Lincoln, Nebraska" placeholder="Origin" />
+        <input id="destination" value="Chicago" placeholder="Destination" />
+        <input id="days" type="number" value="3" min="1" max="14" placeholder="Days" />
+        <input id="budget" type="number" value="800" min="1" placeholder="Budget" />
+        <input id="travelers" type="number" value="2" min="1" max="10" placeholder="Travelers" />
+        <textarea id="interests" placeholder="Interests, comma separated">food, museum, walking</textarea>
+        <button id="planBtn">Generate Trip</button>
+      </div>
+
+      <div class="legend">
+        <span>📍 Destination</span>
+        <span>🏨 Hotel</span>
+        <span>🍴 Restaurant</span>
+        <span>🎯 Attraction</span>
+      </div>
+      <div class="route-legend">Click a hotel, restaurant, or attraction card to jump to its marker and draw a guide line.</div>
+
+      <div class="section">
+        <h2>Budget</h2>
+        <div id="budgetSummary" class="item">No trip loaded yet.</div>
+      </div>
+
+      <div class="section">
+        <h2>Intercity Transport</h2>
+        <div id="intercityTransport" class="item">No trip loaded yet.</div>
+      </div>
+
+      <div class="section">
+        <h2>Local Transport</h2>
+        <div id="localTransport" class="item">No trip loaded yet.</div>
+      </div>
+
+      <div class="section">
+        <h2>Weather</h2>
+        <div id="weatherSummary" class="item">No trip loaded yet.</div>
+      </div>
+
+      <div class="section">
+        <h2>Hotels</h2>
+        <div id="hotelList"></div>
+      </div>
+
+      <div class="section">
+        <h2>Restaurants</h2>
+        <div id="restaurantList"></div>
+      </div>
+
+      <div class="section">
+        <h2>Attractions</h2>
+        <div id="attractionList"></div>
+      </div>
+
+      <div class="section">
+        <h2>Trip Plan</h2>
+        <div id="tripPlan" class="trip-plan item">No trip loaded yet.</div>
+      </div>
+    </div>
+
+    <div id="map"></div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const map = L.map("map").setView([41.85, -87.65], 12);
+
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(map);
+
+    let currentMarkers = [];
+    let markerLookup = {};
+    let currentRouteLine = null;
+    let selectedListItem = null;
+
+    function clearMarkers() {
+      currentMarkers.forEach(marker => map.removeLayer(marker));
+      currentMarkers = [];
+    }
+
+    function emojiForType(type) {
+      if (type === "destination") return "📍";
+      if (type === "hotel") return "🏨";
+      if (type === "restaurant") return "🍴";
+      if (type === "attraction") return "🎯";
+      return "•";
+    }
+
+    function markerHtmlForType(type) {
+      if (type === "destination") return `<div class="icon-pin marker-destination"></div>`;
+      if (type === "hotel") return `<div class="icon-square marker-hotel"></div>`;
+      if (type === "restaurant") return `<div class="icon-triangle"></div>`;
+      if (type === "attraction") return `<div class="icon-diamond marker-attraction"></div>`;
+      return `<div class="icon-pin marker-destination"></div>`;
+    }
+
+    function markerKey(place) {
+      return `${place.type || "place"}::${place.name || place.label || "unknown"}::${place.latitude}::${place.longitude}`;
+    }
+
+    function clearRouteLine() {
+      if (currentRouteLine) {
+        map.removeLayer(currentRouteLine);
+        currentRouteLine = null;
+      }
+    }
+
+    function drawRouteBetweenPoints(startLat, startLng, endLat, endLng) {
+      clearRouteLine();
+      currentRouteLine = L.polyline(
+        [
+          [startLat, startLng],
+          [endLat, endLng]
+        ],
+        {
+          color: "#7c3aed",
+          weight: 4,
+          opacity: 0.85,
+          dashArray: "8, 8"
+        }
+      ).addTo(map);
+    }
+
+    function addMarkers(markers) {
+      clearMarkers();
+      clearRouteLine();
+      markerLookup = {};
+
+      markers.forEach(place => {
+        if (place.latitude == null || place.longitude == null) return;
+
+        const popupHtml = `
+          <div>
+            <strong>${emojiForType(place.type)} ${place.name || place.label || "Place"}</strong><br/>
+            <div>${place.address || ""}</div>
+            ${place.website ? `<div><a href="${place.website}" target="_blank">Website</a></div>` : ""}
+            ${place.phone ? `<div>${place.phone}</div>` : ""}
+          </div>
+        `;
+
+        const marker = L.marker([place.latitude, place.longitude], {
+          icon: L.divIcon({
+            className: "",
+            html: markerHtmlForType(place.type),
+            iconSize: [18, 18],
+            iconAnchor: [9, 9],
+            popupAnchor: [0, -10]
+          })
+        })
+          .addTo(map)
+          .bindPopup(popupHtml);
+
+        currentMarkers.push(marker);
+        markerLookup[markerKey(place)] = marker;
+      });
+    }
+
+    function renderList(containerId, places, icon) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = "";
+
+      if (!places || places.length === 0) {
+        container.innerHTML = `<div class="item">No results found.</div>`;
+        return;
+      }
+
+      places.forEach(place => {
+        const div = document.createElement("div");
+        div.className = "item clickable-item";
+        div.dataset.markerKey = markerKey(place);
+        div.innerHTML = `
+          <strong>${icon} ${place.name}</strong>
+          <small>${place.address || ""}</small>
+          ${place.website ? `<small><a href="${place.website}" target="_blank">Website</a></small>` : ""}
+          ${place.phone ? `<small>${place.phone}</small>` : ""}
+        `;
+
+        div.addEventListener("click", (event) => {
+          if (event.target.tagName.toLowerCase() === "a") return;
+
+          if (selectedListItem) {
+            selectedListItem.classList.remove("selected-item");
+          }
+          div.classList.add("selected-item");
+          selectedListItem = div;
+
+          const marker = markerLookup[div.dataset.markerKey];
+          if (marker) {
+            const markerLatLng = marker.getLatLng();
+            const center = map.getCenter();
+            drawRouteBetweenPoints(center.lat, center.lng, markerLatLng.lat, markerLatLng.lng);
+            map.flyTo(markerLatLng, 15, { duration: 0.8 });
+            marker.openPopup();
+          }
+        });
+
+        container.appendChild(div);
+      });
+    }
+
+    function renderBudgetSummary(summary) {
+      const box = document.getElementById("budgetSummary");
+      if (!summary) {
+        box.textContent = "No budget summary.";
+        return;
+      }
+
+      box.innerHTML = `
+        <strong>Total budget:</strong> $${summary.total_budget ?? "N/A"}<br/>
+        <strong>Travelers:</strong> ${summary.travelers ?? "N/A"}<br/>
+        <strong>Budget per person:</strong> $${summary.budget_per_person ?? "N/A"}
+      `;
+    }
+
+    function renderIntercityTransport(info) {
+      const box = document.getElementById("intercityTransport");
+      if (!info) {
+        box.textContent = "No intercity transport summary.";
+        return;
+      }
+
+      const drive = info.drive_route;
+      const recommendation = info.recommendation || {};
+
+      box.innerHTML = `
+        <strong>Recommended mode:</strong> ${recommendation.recommended_mode || "N/A"}<br/>
+        <strong>Reason:</strong> ${recommendation.reason || "N/A"}<br/>
+        <strong>Driving distance:</strong> ${drive?.distance_km ?? "N/A"} km<br/>
+        <strong>Driving time:</strong> ${drive?.time_hours ?? "N/A"} hours<br/>
+        <small>${info.note || ""}</small>
+      `;
+    }
+
+    function renderLocalTransport(info) {
+      const box = document.getElementById("localTransport");
+      if (!info) {
+        box.textContent = "No local transport summary.";
+        return;
+      }
+
+      const hotel = info.destination_to_first_hotel;
+      const restaurant = info.destination_to_first_restaurant;
+
+      box.innerHTML = `
+        <strong>Destination to first hotel:</strong> ${hotel?.time_minutes ?? "N/A"} minutes, ${hotel?.distance_km ?? "N/A"} km<br/>
+        <strong>Destination to first restaurant:</strong> ${restaurant?.time_minutes ?? "N/A"} minutes, ${restaurant?.distance_km ?? "N/A"} km<br/>
+        <small>${info.note || ""}</small>
+      `;
+    }
+
+    function renderTripPlanCards(planText) {
+      const box = document.getElementById("tripPlan");
+
+      if (!planText) {
+        box.innerHTML = "No trip plan.";
+        return;
+      }
+
+      const sections = planText
+        .split(/\n(?=\*\*|## )/)
+        .map(section => section.trim())
+        .filter(Boolean);
+
+      if (sections.length === 0) {
+        box.textContent = planText;
+        return;
+      }
+
+      const cardsHtml = sections.map(section => {
+        const cleaned = section
+          .replace(/^\*\*(.*?)\*\*\s*/s, "$1\n")
+          .replace(/^##\s*/s, "")
+          .trim();
+
+        const lines = cleaned.split("\n").map(line => line.trim()).filter(Boolean);
+        const title = lines.shift() || "Trip Plan";
+        const items = lines.map(line => line.replace(/^[-*]\s*/, "")).filter(Boolean);
+
+        if (items.length === 0) {
+          return `
+            <div class="plan-card">
+              <h3>${title}</h3>
+              <div>${cleaned}</div>
+            </div>
+          `;
+        }
+
+        return `
+          <div class="plan-card">
+            <h3>${title}</h3>
+            <ul>
+              ${items.map(item => `<li>${item}</li>`).join("")}
+            </ul>
+          </div>
+        `;
+      }).join("");
+
+      box.innerHTML = `<div class="plan-cards">${cardsHtml}</div>`;
+    }
+
+    async function loadTrip() {
+      const payload = {
+        origin: document.getElementById("origin").value,
+        destination: document.getElementById("destination").value,
+        days: Number(document.getElementById("days").value),
+        budget: Number(document.getElementById("budget").value),
+        travelers: Number(document.getElementById("travelers").value),
+        interests: document.getElementById("interests").value
+          .split(",")
+          .map(s => s.trim())
+          .filter(Boolean)
+      };
+
+      const response = await fetch("http://127.0.0.1:8000/plan-trip", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.detail || "Request failed.");
+        return;
+      }
+
+      document.getElementById("weatherSummary").textContent = data.weather_summary || "No weather summary.";
+      renderTripPlanCards(data.trip_plan || "No trip plan.");
+
+      renderBudgetSummary(data.budget_summary);
+      renderIntercityTransport(data.intercity_transport);
+      renderLocalTransport(data.local_transport);
+
+      if (selectedListItem) {
+        selectedListItem.classList.remove("selected-item");
+        selectedListItem = null;
+      }
+      renderList("hotelList", data.recommended_hotels || [], "🏨");
+      renderList("restaurantList", data.recommended_restaurants || [], "🍴");
+      renderList("attractionList", data.recommended_attractions || [], "🎯");
+
+      if (data.map_center?.latitude != null && data.map_center?.longitude != null) {
+        map.setView([data.map_center.latitude, data.map_center.longitude], 13);
+      }
+
+      addMarkers(data.map_markers || []);
+      clearRouteLine();
+
+      const validPoints = (data.map_markers || [])
+        .filter(place => place.latitude != null && place.longitude != null)
+        .map(place => [place.latitude, place.longitude]);
+
+      if (validPoints.length > 1) {
+        map.fitBounds(validPoints, { padding: [40, 40] });
+      }
+    }
+
+    document.getElementById("planBtn").addEventListener("click", loadTrip);
+  </script>
+</body>
